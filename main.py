@@ -1,4 +1,4 @@
-import pygame,sys,random
+import pygame,sys,random,enum
 from textwrap import wrap as strwrap
 s = random.randint(1,100)
 displaysize = width,height = (640,480)
@@ -11,10 +11,11 @@ clock = pygame.time.Clock()
 #camera
 CAMX = 0
 CAMY = 0
+FPS = 30
 
 #init imgs
-from constants import tiletemplates,TileTemplate,img
-
+from constants import tiletemplates,TileTemplate,img,DEATHS
+#functions
 def match_tiletemplate(type_:str) -> TileTemplate:
     try:
         tt = tiletemplates[type_]
@@ -22,6 +23,10 @@ def match_tiletemplate(type_:str) -> TileTemplate:
         tt = tiletemplates["000"]
     return tt     
 
+def generatelevel(width,height):
+    return(("001"*width+"\n")*height)
+
+#actuual classes
 class Level():
     """
     A level.
@@ -91,7 +96,6 @@ class Level():
         for i in self.tiles:SCREEN.blit(i.image,i.rect.move(CAMX,CAMY))
         for i in self.players:SCREEN.blit(i.image,i.rect.move(CAMX,CAMY))
         if self.editor:self.et.draw(SCREEN)
-        
 
 class Tile(pygame.sprite.Sprite):
     """A tile in the level."""
@@ -237,12 +241,20 @@ class Player(pygame.sprite.Sprite):
 
             #trigger effects of special tiles
             for i in pygame.sprite.spritecollide(self,tiles,False):
+                if match_tiletemplate(i.type).deadly:
+                    self.triggerdeath(cause=DEATHS.SPIKE)
                 if i.type == "004":#bounce pad
                     self.yv = -20
             
                 
         self.switch_texture()
         self.movecam()
+    def triggerdeath(self,cause=DEATHS.UNKNOWN):
+        """Triggers the death of the player."""
+        if cause is DEATHS.SPIKE:
+            ...
+        self.respawn()
+
 
 class EditorTile(pygame.sprite.Sprite):
     """
@@ -305,9 +317,6 @@ class EditorTile(pygame.sprite.Sprite):
         _tmpimg.set_alpha(56)
         surf.blit(_tmpimg,(self.rect.x,self.rect.y))
 
-#oh, while i'm at it:
-def generatelevel(width,height):
-    return(("001"*width+"\n")*height)
 
 #init before game:
 def runlevel(lvlname):
@@ -339,8 +348,8 @@ def runlevel(lvlname):
         SCREEN.fill(bg_color)
         level.tick()
         level.draw()
-        pygame.display.flip()
-        clock.tick(30)
+        pygame.display.update()
+        clock.tick(FPS)
 
 runlevel("level.txt")
 

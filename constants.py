@@ -1,7 +1,7 @@
 #SETUP FOR CONSTANTS
 import pygame as _pg
 import os as _os
-import random as _rnd
+from enum import Enum as _enum
 if __name__ == "__main__":
     _pg.init()
     _pg.display.set_mode((1,1))
@@ -26,13 +26,14 @@ for _i in [x.removeprefix("textures\\") for x in _getListOfFiles("textures")]:
     img[_i.removesuffix(".png").replace("\\","/")] = _loadimg(_i)
 
 class TileTemplate():
-    def __init__(self,type_,imgs=[img["empty"]],randomtexture=False,collidable=False,width=32,height=32,key: int | None = None):
+    def __init__(self,type_,imgs=[img["empty"]],randomtexture=False,collidable=False,width=32,height=32,deadly=False,key: int | None = None):
         self.type = type_
         self.imgs = imgs
         self.randomtexture = randomtexture
         self.collidable = collidable
         self.width = width
         self.height = height
+        self.deadly = deadly
         self.key = _keys_dict[key]
     def get_texture(self,seed:int|None=None,variant = 0):
         if seed is not None:#lemme just inform you that if a list has only one value, you are FORCED to pick the value.
@@ -48,8 +49,12 @@ tiletemplates = {
     "004":TileTemplate(type_="004",imgs=[img["tiles/bounce_pad"]],key=3),
     "005":TileTemplate(type_="005",imgs=[img["tiles/platform_straight"]],collidable=True,key=2),
     "006":TileTemplate(type_="006",imgs=[img["tiles/grass_1"],img["tiles/grass_2"],img["tiles/grass_3"]],collidable=True,key=2),
+    "007":TileTemplate(type_="007",imgs=[img["tiles/spike"]],deadly=True,key=4),
 }
 
+class DEATHS(_enum):
+    SPIKE = "spike"
+    UNKNOWN = "unknown"
 
 
 del _pg,_getListOfFiles,_i,_loadimg,_os,_keys_dict
