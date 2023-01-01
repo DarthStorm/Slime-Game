@@ -1,5 +1,6 @@
-import pygame,sys,random,enum
+import pygame,sys,random
 from textwrap import wrap as strwrap
+from math import sin,cos
 s = random.randint(1,100)
 displaysize = width,height = (640,480)
 bg_color = (69,69,69)
@@ -27,6 +28,31 @@ def generatelevel(width,height):
     return(("001"*width+"\n")*height)
 
 #actuual classes
+class Particle(pygame.sprite.Sprite):
+    def __init__(self,image:pygame.Surface,x:int|float,y:int|float,xv:int|float,yv:int|float,angle:int|float,ticks:int,gravity=True):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = image
+        self.xv = xv
+        self.yv = yv
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.angle = angle
+        self.ticks = ticks
+        self.gravity = gravity
+    def update(self):
+        self.ticks -= 1
+        if self.gravity:self.yv += 1
+        if self.ticks <= 0:
+            self.kill()
+            del self
+            return
+        rotated_image = pygame.transform.rotate(self.image,self.angle)
+        new_rect = rotated_image.get_rect(center = self.image.get_rect(center = (self.rect.centerx,self.rect.centery)).center)
+        self.image,self.rect = rotated_image, new_rect
+        self.rect.x += self.xv
+        self.rect.y += self.yv
+        
 class Level():
     """
     A level.
@@ -67,6 +93,8 @@ class Level():
                 sprite = Tile(x,y,type_ = tiletype)
                 self.tiles.add(sprite)
 
+        self.particles = pygame.sprite.Group()
+
         #editor-exclusive
         self.et = EditorTile()
         self.editor = False
@@ -86,15 +114,17 @@ class Level():
         CAMX = 0
         CAMY = 0
         self.tiles.update()
-        self.players.update(self.tiles)
+        self.players.update(self)
         CAMX /= len(self.players)
         CAMY /= len(self.players)
+        self.particles.update()
         self.et.update(self)
 
     def draw(self):
         """Draw function: runs every frame."""
         for i in self.tiles:SCREEN.blit(i.image,i.rect.move(CAMX,CAMY))
         for i in self.players:SCREEN.blit(i.image,i.rect.move(CAMX,CAMY))
+        for i in self.particles:SCREEN.blit(i.image,i.rect.move(CAMX,CAMY))
         if self.editor:self.et.draw(SCREEN)
 
 class Tile(pygame.sprite.Sprite):
@@ -157,6 +187,7 @@ class Player(pygame.sprite.Sprite):
         global CAMX,CAMY
         CAMX += -self.rect.centerx + width/2
         CAMY += -self.rect.centery + height/2
+
     def switch_texture(self):
         """Updates player.image for animation."""
         self.frame += 1
@@ -179,7 +210,8 @@ class Player(pygame.sprite.Sprite):
                         
             self.image = img[self.imgname]
             self.frame = 0
-    def update(self,tiles):
+
+    def update(self,level:Level):
         """Updates the player."""
         keys = pygame.key.get_pressed()
         if self.godmode:
@@ -211,7 +243,7 @@ class Player(pygame.sprite.Sprite):
 
             #collision x:
             self.rect.x = self.x
-            for i in tiles:
+            for i in level.tiles:
                 if self.rect.colliderect(i) and match_tiletemplate(i.type).collidable:
                     if self.xv > 0:
                         for _ in range(100):
@@ -225,7 +257,7 @@ class Player(pygame.sprite.Sprite):
                     self.x = self.rect.x
             #collision y:
             self.rect.y = self.y
-            for i in tiles:
+            for i in level.tiles:
                 if self.rect.colliderect(i) and match_tiletemplate(i.type).collidable:
                     if self.yv > 0:
                         for _ in range(100):
@@ -240,19 +272,25 @@ class Player(pygame.sprite.Sprite):
                     self.y = self.rect.y
 
             #trigger effects of special tiles
-            for i in pygame.sprite.spritecollide(self,tiles,False):
+            for i in pygame.sprite.spritecollide(self,level.tiles,False):
                 if match_tiletemplate(i.type).deadly:
-                    self.triggerdeath(cause=DEATHS.SPIKE)
+                    self.triggerdeath(level,cause=DEATHS.SPIKE)
                 if i.type == "004":#bounce pad
                     self.yv = -20
             
                 
         self.switch_texture()
         self.movecam()
-    def triggerdeath(self,cause=DEATHS.UNKNOWN):
+
+    def triggerdeath(self,level:Level,cause=DEATHS.UNKNOWN):
         """Triggers the death of the player."""
         if cause is DEATHS.SPIKE:
-            ...
+            for _ in range(5):
+                _x = random.random() * 2 + 5
+                ps = pygame.Surface(size=(_x,_x),flags=pygame.SRCALPHA)
+                ps.fill((109,231,117))
+                particle = Particle(ps,self.x,self.y,random.random() * 12 - 6,random.random() * 16 - 10,0,30)
+                level.particles.add(particle)
         self.respawn()
 
 
