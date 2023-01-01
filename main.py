@@ -113,7 +113,7 @@ class Level():
         #rezero CAMX and CAMY for players (yea, plural form) to add
         CAMX = 0
         CAMY = 0
-        self.tiles.update()
+        self.tiles.update(self.editor)
         self.players.update(self)
         CAMX /= len(self.players)
         CAMY /= len(self.players)
@@ -140,9 +140,9 @@ class Tile(pygame.sprite.Sprite):
         self.seed = random.randint(1,100)
         self.image = match_tiletemplate(self.type).get_texture()
         self.rect = self.image.get_rect(topleft=(self.x,self.y))
-    def update(self):
+    def update(self,editor:bool=False):
         """Updates the tile."""
-        self.image = match_tiletemplate(self.type).get_texture(seed=self.seed + s)
+        self.image = match_tiletemplate(self.type).get_texture(seed=self.seed + s,editor = editor)
         self.rect.x,self.rect.y = self.x,self.y
     
 class Player(pygame.sprite.Sprite):
@@ -293,7 +293,6 @@ class Player(pygame.sprite.Sprite):
                 level.particles.add(particle)
         self.respawn()
 
-
 class EditorTile(pygame.sprite.Sprite):
     """
     Sprite that does all the actual editing.
@@ -354,7 +353,6 @@ class EditorTile(pygame.sprite.Sprite):
         _tmpimg = self.image.copy()
         _tmpimg.set_alpha(56)
         surf.blit(_tmpimg,(self.rect.x,self.rect.y))
-
 
 #init before game:
 def runlevel(lvlname):
