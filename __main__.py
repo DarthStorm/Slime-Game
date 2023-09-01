@@ -157,11 +157,11 @@ class Player(pygame.sprite.Sprite):
         x,y:The absolute position of the player in-game. These are NOT passed to rect.x and rect.y.
         width,height: The size of the player, normally 32*32.
         accel:Acceleration, a multiplier.
-        jumpheight:How high the player can jump:keep in mind it is NEGATIVE due to how pygame's dusplay works.
+        jumpheight:How high the player can jump:keep in mind it is NEGATIVE due to how pygame's display works.
         airres:Air resistance to slow the player down, a multiplier.
         
     """
-    def __init__(self,x,y,width=32,height=32,accel=1.5,jumpheight=-15,airres=0.85):
+    def __init__(self,x,y,basewidth=32,baseheight=32,accel=1.5,jumpheight=-15,airres=0.85):
         """Initialises the player. See class Player."""
         pygame.sprite.Sprite.__init__(self)
         self.spawnx,self.spawny = x*32,y*32
@@ -169,11 +169,14 @@ class Player(pygame.sprite.Sprite):
         self.jumpheight = jumpheight
         self.airres = airres
         self.godmode = False
+        self.basewidth = basewidth
+        self.baseheight = baseheight
         self.respawn()
         self.movecam()
     def respawn(self):
+        self.respawntimer = -1 #not dead
         self.x,self.y = self.spawnx,self.spawny
-        self.width,self.height = width,height
+        self.width,self.height = self.basewidth,self.baseheight
         self.xv = 0
         self.yv = 0
         self.airtime = 999
@@ -189,7 +192,15 @@ class Player(pygame.sprite.Sprite):
         CAMY += -self.rect.centery + height/2
 
     def switch_texture(self):
-        """Updates player.image for animation."""
+        """
+        Updates player.image for animation.
+        If the animation needs to be changed, ig you fix this function? also constants
+        """
+        #if player dead:
+        if self.respawntimer > 0:
+            self.image = img["empty"]
+            return
+
         self.frame += 1
         if self.airtime > 3:
             if self.airtime < 5:self.imgname = "player/player_blob_3"
@@ -223,7 +234,12 @@ class Player(pygame.sprite.Sprite):
             self.y += self.yv
             self.rect.x = self.x
             self.rect.y = self.y
+        elif self.respawntimer > 0:
+            self.respawntimer -= 1
+            if self.respawntimer == 0:
+                self.respawn()
         else:
+            #player is still alive
             self.yv += 1
             self.airtime += 1
 
@@ -284,14 +300,17 @@ class Player(pygame.sprite.Sprite):
 
     def triggerdeath(self,level:Level,cause=DEATHS.UNKNOWN):
         """Triggers the death of the player."""
-        if cause is DEATHS.SPIKE:
-            for _ in range(5):
-                _x = random.random() * 2 + 5
-                ps = pygame.Surface(size=(_x,_x),flags=pygame.SRCALPHA)
-                ps.fill((109,231,117))
-                particle = Particle(ps,self.x,self.y,random.random() * 12 - 6,random.random() * 16 - 10,0,30)
-                level.particles.add(particle)
-        self.respawn()
+        match cause:
+            case DEATHS.SPIKE:
+                for _ in range(5):
+                    _x = random.random() * 2 + 5
+                    ps = pygame.Surface(size=(_x,_x),flags=pygame.SRCALPHA)
+                    ps.fill((109,231,117))
+                    particle = Particle(ps,self.x+self.width/2,self.y+self.height/2,random.random() * 12 - 6,random.random() * 16 - 10,0,30)
+                    level.particles.add(particle)
+                self.respawntimer = 50
+            case _:
+                self.respawn()
 
 class EditorTile(pygame.sprite.Sprite):
     """
@@ -307,7 +326,7 @@ class EditorTile(pygame.sprite.Sprite):
         self.width,self.height = (width,height)
         self.brush = "002"
 
-        self.image = match_tiletemplate(self.brush).get_texture()
+        self.image = match_tiletemplate(self.brush).get_texture(editor=True)
         self.rect = self.image.get_rect()
         #ok remember to blit the IMAGE and not the sprite
     def update(self,lvl:Level):
@@ -316,8 +335,9 @@ class EditorTile(pygame.sprite.Sprite):
         mouse = pygame.mouse
         mp = mouse.get_pos()#mp means mouse pos
         self.rect.x,self.rect.y = ((mp[0]) // 32)*32 + CAMX%32,((mp[1]) // 32)*32 + CAMY%32
-        self.image = match_tiletemplate(self.brush).get_texture(variant=0)
+        self.image = match_tiletemplate(self.brush).get_texture(editor=True)
         #now mp means mouse pressed
+        #0 = left click
         #don't worry, these are just temp vars, not using them outside this func
         mp = mouse.get_pressed()
 
@@ -365,6 +385,7 @@ def runlevel(lvlname):
     running = True
     #main game loop
     while running:
+        #handle events
         for event in pygame.event.get():
             #check if user wants to quit
             if event.type == pygame.QUIT:
