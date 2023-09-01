@@ -56,7 +56,7 @@ class Particle(pygame.sprite.Sprite):
 class Level():
     """
     A level.
-    Creates a level.Does not automatically add a player for you though: you HAVE to place it in the level.
+    Creates a level. Does not automatically add a player for you though: you HAVE to place it in the level.
     Inputs:    
         Level(level:str)
         
