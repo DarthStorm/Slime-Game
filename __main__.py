@@ -64,6 +64,7 @@ class Level():
         \"\"\"001003001
         001001001
         001002001
+
         \"\"\"
         will create a level that looks a bit like this:
           🟩
@@ -78,7 +79,9 @@ class Level():
         self.levelstr = level
 
         self.level = [strwrap(y,3) for y in level.split("\n")]#trust me bro
-        self.level.pop()#gets rid of the excess \n
+        if self.level[-1] == "\n":
+            #gets rid of the excess \n
+            self.level.pop()
 
         self.players = pygame.sprite.Group()
         self.tiles = pygame.sprite.Group()
