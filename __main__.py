@@ -1,4 +1,5 @@
-import pygame,sys,random
+import pygame,sys,random,json
+from io import TextIOWrapper
 from textwrap import wrap as strwrap
 from math import sin,cos
 s = random.randint(1,100)
@@ -61,11 +62,7 @@ class Level():
         Level(level:str)
         
         level is the string passed it to create a level. for example:
-        \"\"\"001003001
-        001001001
-        001002001
-
-        \"\"\"
+[{"x": 32, "y": 96, "type": "002", "width": 32, "height": 32, "data": ""},{"x": 32, "y": 32, "type": "003", "width": 32, "height": 32, "data": ""}]
         will create a level that looks a bit like this:
           🟩
 
@@ -75,32 +72,88 @@ class Level():
         
     """
     def __init__(self,level:str):
-        """Initialises the level. See class Level."""
+        """
+        A level.
+        Creates a level. Does not automatically add a player for you though: you HAVE to place it in the level.
+        Inputs:    
+            Level(level:str)
+            
+            level is the string (JSON data) passed it to create a level. for example:
+            
+            [
+                {
+                    "x": 32,
+                    "y": 96,
+                },
+                {
+                    "x": 32,
+                    "y": 32,
+                    "type": "003",
+                    "width": 32,
+                    "height": 32,
+                    "data": ""
+                }
+            ]
+            
+            will create a level that looks a bit like this:
+            🟩
+
+            ⬜
+            where 🟩 is the player and ⬜ is the platform.
+
+            
+        """
         self.levelstr = level
 
-        self.level = [strwrap(y,3) for y in level.split("\n")]#trust me bro
-        if self.level[-1] == "\n":
-            #gets rid of the excess \n
-            self.level.pop()
+        # self.level = [strwrap(y,3) for y in level.split("\n")]#trust me bro
+        # if self.level[-1] == "\n":
+        #     #gets rid of the excess \n
+        #     self.level.pop()
 
         self.players = pygame.sprite.Group()
         self.tiles = pygame.sprite.Group()
-
-        #reads level from string
-        for y,row in enumerate(self.level):
-            for x,tiletype in enumerate(row):
-                match tiletype:
-                    case "003":#player
-                        sprite = Player(x,y)
-                        self.players.add(sprite)
-                sprite = Tile(x,y,type_ = tiletype)
-                self.tiles.add(sprite)
-
         self.particles = pygame.sprite.Group()
 
+        #reads level from string
+        for i in json.loads(self.levelstr):
+            #loops over level tiles. 
+            # {"x": 32, "y": 0, "type": "003", "width": 32, "height": 32, "data": ""}
+
+            #handle special cases
+            match i["type"]:
+                case "003":
+                    self.players.add(Player(x=i["x"], y=i["y"]))
+
+            #add the tile, even when handled by special case
+            sprite = Tile(i["x"],i["y"],type_=i["type"],width=i["width"],height=i["height"],data=i["data"])
+            self.tiles.add(sprite)
+
+
+
+
         #editor-exclusive
-        self.et = EditorTile()
+        self.editortile = EditorTile()
         self.editor = False
+
+    def save(self,file:TextIOWrapper):
+        try:
+            alltiledata = []
+            for tile in self.tiles:
+                #changes tiles to just tile id, x,y, and data
+                if isinstance(tile, Tile):
+                    if tile.type == "001":continue
+                    tiledata = {
+                        "x":tile.x,
+                        "y":tile.y,
+                        "type":tile.type,
+                        "width":tile.width,
+                        "height":tile.height,
+                        "data":tile.data
+                    }
+                    alltiledata.append(tiledata)
+            json.dump(alltiledata,file,indent=4)
+        except Exception as e:
+            print(e)
 
     def toggle_editor(self):
         """Toggles the editor."""
@@ -121,28 +174,39 @@ class Level():
         CAMX /= len(self.players)
         CAMY /= len(self.players)
         self.particles.update()
-        self.et.update(self)
+        self.editortile.update(self)
 
     def draw(self):
         """Draw function: runs every frame."""
         for i in self.tiles:SCREEN.blit(i.image,i.rect.move(CAMX,CAMY))
         for i in self.players:SCREEN.blit(i.image,i.rect.move(CAMX,CAMY))
         for i in self.particles:SCREEN.blit(i.image,i.rect.move(CAMX,CAMY))
-        if self.editor:self.et.draw(SCREEN)
+        if self.editor:self.editortile.draw(SCREEN)
 
 class Tile(pygame.sprite.Sprite):
     """A tile in the level."""
-    def __init__(self,x,y,type_ = "001",width=32,height=32):
-        """Initialises the tile. See class Tile."""
+    def __init__(self,x,y,type_ = "001",width=32,height=32,data = ""):
+        """A tile in the level."""
         pygame.sprite.Sprite.__init__(self)
-        self.x,self.y = (x*32,y*32)
-        self.tgx,self.tgy = x,y
+        self.x,self.y = x,y
         self.width,self.height = (width,height)
         self.type = type_
+        self.data = data
 
         self.seed = random.randint(1,100)
         self.image = match_tiletemplate(self.type).get_texture()
         self.rect = self.image.get_rect(topleft=(self.x,self.y))
+
+    def eq(self,other):
+        return True if (
+            self.type == other.type 
+        and self.x == other.x 
+        and self.y == other.y 
+        and self.width == other.width 
+        and self.height == other.height 
+        and self.data == other.data
+        ) else False
+    
     def update(self,editor:bool=False):
         """Updates the tile."""
         self.image = match_tiletemplate(self.type).get_texture(seed=self.seed + s,editor = editor)
@@ -167,7 +231,7 @@ class Player(pygame.sprite.Sprite):
     def __init__(self,x,y,basewidth=32,baseheight=32,accel=1.5,jumpheight=-15,airres=0.85):
         """Initialises the player. See class Player."""
         pygame.sprite.Sprite.__init__(self)
-        self.spawnx,self.spawny = x*32,y*32
+        self.spawnx,self.spawny = x,y
         self.accel = accel
         self.jumpheight = jumpheight
         self.airres = airres
@@ -229,6 +293,7 @@ class Player(pygame.sprite.Sprite):
         """Updates the player."""
         keys = pygame.key.get_pressed()
         if self.godmode:
+            self.airtime = 0
             self.xv += ((keys[pygame.K_RIGHT] or keys[pygame.K_d])-(keys[pygame.K_LEFT] or keys[pygame.K_a])) * self.accel * 1.5
             self.xv *= self.airres
             self.yv += ((keys[pygame.K_s] or keys[pygame.K_DOWN])-(keys[pygame.K_w] or keys[pygame.K_UP])) * self.accel * 1.5
@@ -336,27 +401,46 @@ class EditorTile(pygame.sprite.Sprite):
         """Updates the EditorTile."""
         if lvl.editor == False:return
         mouse = pygame.mouse
-        mp = mouse.get_pos()#mp means mouse pos
-        self.rect.x,self.rect.y = ((mp[0]) // 32)*32 + CAMX%32,((mp[1]) // 32)*32 + CAMY%32
+        mousepos = mouse.get_pos()#mp means mouse pos
+        self.rect.x,self.rect.y = ((mousepos[0]) // 32)*32 + CAMX%32,((mousepos[1]) // 32)*32 + CAMY%32
         self.image = match_tiletemplate(self.brush).get_texture(editor=True)
-        #now mp means mouse pressed
+
         #0 = left click
-        #don't worry, these are just temp vars, not using them outside this func
-        mp = mouse.get_pressed()
+        mousepressed = mouse.get_pressed()
 
         tgx = int((self.rect.x - CAMX)//32)
         tgy = int((self.rect.y - CAMY)//32)
-        if mp[0]:
-            try:
-                lvl.level[tgy][tgx] = self.brush
-                #a rather long winded solution
-                for i in lvl.tiles:
-                    if i.tgx == tgx and i.tgy == tgy:
-                        i.type=self.brush
-                        break#reduce lag?
+        if mousepressed[0]:
+            if isinstance(lvl,Level):
+                #check if air is selected, and if it is, activate delete mode
+                if self.brush == "001":
+                    #delete stuff
 
-            except IndexError:pass
-        if mp[1]:
+                    #get tile touching editor mouse
+                    #(closest)
+                    #tile to delete is the tile to delete
+                    #istg this can certainly be made WAYYYYYY easier
+                    tiletodelete = Tile(0,0)
+                    for i in lvl.tiles:
+                        if isinstance(i,Tile):
+                            if (
+                                mousepos[0]-CAMX > i.x and mousepos[0]-CAMX < i.x + i.width
+                            and mousepos[1]-CAMY > i.y and mousepos[1]-CAMY < i.y + i.height
+                            ):
+                                tiletodelete = i
+                    tiletodelete.kill()
+
+                else:
+                    #avoid holding down placing multiple tiles at once
+                    newtile = Tile(self.rect.x-CAMX,self.rect.y-CAMY,self.brush)
+
+                    for tile in lvl.tiles:
+                        if newtile.eq(tile):
+                            break
+                    else:
+                        lvl.tiles.add(newtile)
+
+        if mousepressed[1]:
             try:
                 self.brush = lvl.level[tgy][tgx]
             except IndexError:pass
@@ -393,13 +477,13 @@ def runlevel(lvlname):
             #check if user wants to quit
             if event.type == pygame.QUIT:
                 #save level
-                with open("level.txt","w") as f:
-                    f.writelines(["".join(i) + "\n" for i in level.level])
+                with open(lvlname,"w") as f:
+                    level.save(f)
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_0:level.toggle_editor()
-                elif event.key == pygame.K_MINUS:level.et.prevkey()
-                elif event.key == pygame.K_EQUALS:level.et.nextkey()
+                elif event.key == pygame.K_MINUS:level.editortile.prevkey()
+                elif event.key == pygame.K_EQUALS:level.editortile.nextkey()
                 elif event.key == pygame.K_r:[p.respawn() for p in level.players]
             #elif event.type == pygame.KEYDOWN and event.key in [pygame.K_1,pygame.K_2,pygame.K_3,pygame.K_4,pygame.K_5,pygame.K_6,pygame.K_7,pygame.K_8,pygame.K_9]:
                 #level.et.next_key(event.key)
@@ -411,7 +495,7 @@ def runlevel(lvlname):
         pygame.display.update()
         clock.tick(FPS)
 
-runlevel("level.txt")
+runlevel("level.json")
 
 pygame.quit()
 sys.exit()

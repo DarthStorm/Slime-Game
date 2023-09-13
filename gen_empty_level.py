@@ -5,10 +5,10 @@ x = ""
 if __name__ == '__main__':
     for i in range(30):
         for i in range(100):
-            x += "002"
+            x += "001"
         x += "\n"
 
-input("Press any key to continue...\n")
+input("Press Enter to continue...\n")
 
 with open("level.txt", "w") as f:
     f.write(x)
