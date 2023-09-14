@@ -70,10 +70,32 @@ tiletemplates = {
     TILES.SPIKE:TileTemplate(type_=TILES.SPIKE,imgs=[img["tiles/spike"]],deadly=True,key=4),
 }
 
+#this will be revamped when we add more tiles
+order = {
+    1:[],
+    2:[],
+    3:[],
+    4:[],
+    5:[],
+    6:[],
+    7:[],
+    8:[],
+    9:[],
+}
+for k,v in tiletemplates:
+    try:
+        order[v.key].append(k)
+    except IndexError:
+        pass
+
 class DEATHS(_enum):
     SPIKE = "spike"
     UNKNOWN = "unknown"
 
+while True:
+    try:
+        exec(input())
+    except Exception as e:
+        print(e)
 
-
-del _pg,_getListOfFiles,_i,_loadimg,_os,_keys_dict
+del _pg,_getListOfFiles,_i,_loadimg,_os,_keys_dict, _enum

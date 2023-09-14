@@ -16,7 +16,7 @@ CAMY = 0
 FPS = 30
 
 #init imgs
-from constants import tiletemplates,TileTemplate,img,DEATHS,TILES,TILESIZE
+from constants import tiletemplates,TileTemplate,img,DEATHS,TILES,TILESIZE,order
 #functions
 def match_tiletemplate(type_:str) -> TileTemplate:
     try:
