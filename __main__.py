@@ -16,16 +16,17 @@ CAMY = 0
 FPS = 30
 
 #init imgs
-from constants import tiletemplates,TileTemplate,img,DEATHS
+from constants import tiletemplates,TileTemplate,img,DEATHS,TILES,TILESIZE
 #functions
 def match_tiletemplate(type_:str) -> TileTemplate:
     try:
         tt = tiletemplates[type_]
     except KeyError:
-        tt = tiletemplates["000"]
+        tt = tiletemplates[TILES.NULL]
     return tt     
 
 def generatelevel(width,height):
+    #fix
     return(("001"*width+"\n")*height)
 
 #actuual classes
@@ -56,20 +57,7 @@ class Particle(pygame.sprite.Sprite):
         
 class Level():
     """
-    A level.
-    Creates a level. Does not automatically add a player for you though: you HAVE to place it in the level.
-    Inputs:    
-        Level(level:str)
-        
-        level is the string passed it to create a level. for example:
-[{"x": 32, "y": 96, "type": "002", "width": 32, "height": 32, "data": ""},{"x": 32, "y": 32, "type": "003", "width": 32, "height": 32, "data": ""}]
-        will create a level that looks a bit like this:
-          🟩
-
-          ⬜
-        where 🟩 is the player and ⬜ is the platform.
-
-        
+    wrong place, check the docs at Level.__init__()
     """
     def __init__(self,level:str):
         """
@@ -121,7 +109,7 @@ class Level():
 
             #handle special cases
             match i["type"]:
-                case "003":
+                case TILES.SPAWN_POINT:
                     self.players.add(Player(x=i["x"], y=i["y"]))
 
             #add the tile, even when handled by special case
@@ -141,7 +129,7 @@ class Level():
             for tile in self.tiles:
                 #changes tiles to just tile id, x,y, and data
                 if isinstance(tile, Tile):
-                    if tile.type == "001":continue
+                    if tile.type == TILES.AIR:continue
                     tiledata = {
                         "x":tile.x,
                         "y":tile.y,
@@ -185,7 +173,7 @@ class Level():
 
 class Tile(pygame.sprite.Sprite):
     """A tile in the level."""
-    def __init__(self,x,y,type_ = "001",width=32,height=32,data = ""):
+    def __init__(self,x,y,type_ = TILES.AIR,width=32,height=32,data = ""):
         """A tile in the level."""
         pygame.sprite.Sprite.__init__(self)
         self.x,self.y = x,y
@@ -359,7 +347,7 @@ class Player(pygame.sprite.Sprite):
             for i in pygame.sprite.spritecollide(self,level.tiles,False):
                 if match_tiletemplate(i.type).deadly:
                     self.triggerdeath(level,cause=DEATHS.SPIKE)
-                if i.type == "004":#bounce pad
+                if i.type == TILES.BOUNCE_PAD:#bounce pad
                     self.yv = -20
             
                 
@@ -392,7 +380,7 @@ class EditorTile(pygame.sprite.Sprite):
         """Initialises the EditorTile. See class EditorTile."""
         pygame.sprite.Sprite.__init__(self)
         self.width,self.height = (width,height)
-        self.brush = "002"
+        self.brush = TILES.PLATFORM_1
 
         self.image = match_tiletemplate(self.brush).get_texture(editor=True)
         self.rect = self.image.get_rect()
@@ -413,7 +401,7 @@ class EditorTile(pygame.sprite.Sprite):
         if mousepressed[0]:
             if isinstance(lvl,Level):
                 #check if air is selected, and if it is, activate delete mode
-                if self.brush == "001":
+                if self.brush == TILES.AIR:
                     #delete stuff
 
                     #get tile touching editor mouse

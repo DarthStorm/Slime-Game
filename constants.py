@@ -21,9 +21,14 @@ def _getListOfFiles(dirName):
 
 
 #CONSTANTS
+
+#img:list of images
 img:dict[str:_pg.Surface] = {}
 for _i in [x.removeprefix("textures\\") for x in _getListOfFiles("textures")]:
     img[_i.removesuffix(".png").replace("\\","/")] = _loadimg(_i)
+#tile:
+TILESIZE = 32
+
 
 class TileTemplate():
     def __init__(self,type_:str,imgs:list[_pg.Surface]=[img["empty"]],editorimgs:list[_pg.Surface]|None = None,randomtexture:bool=False,collidable:bool=False,width:int=32,height:int = 32,deadly:bool=False,key: int | None = None):
@@ -43,20 +48,32 @@ class TileTemplate():
         else:
             return imgl[variant]
 #To add a new tile, this is the only file you need to change if other effects are not required.
+
+class TILES(_enum):
+    NULL = "null"
+    AIR = "air"
+    PLATFORM_1 = "platform_1"
+    SPAWN_POINT = "spawn_point"
+    BOUNCE_PAD = "bounce_pad"
+    PLATFORM_2 = "platform_2"
+    GRASS = "grass"
+    SPIKE = "spike"
+
 tiletemplates = {
-    "000":TileTemplate(type_="000",imgs=[img["empty"]],key=None),
-    "001":TileTemplate(type_="001",imgs=[img["empty"]],key=2),
-    "002":TileTemplate(type_="002",imgs=[img["tiles/platform"]],collidable=True,key=1),
-    "003":TileTemplate(type_="003",imgs=[img["empty"]],editorimgs=[img["player/player_idle"]],key=2),
-    "004":TileTemplate(type_="004",imgs=[img["tiles/bounce_pad"]],key=3),
-    "005":TileTemplate(type_="005",imgs=[img["tiles/platform_straight"]],collidable=True,key=2),
-    "006":TileTemplate(type_="006",imgs=[img["tiles/grass_1"],img["tiles/grass_2"],img["tiles/grass_3"]],collidable=True,key=2),
-    "007":TileTemplate(type_="007",imgs=[img["tiles/spike"]],deadly=True,key=4),
+    TILES.NULL:TileTemplate(type_=TILES.NULL,imgs=[img["empty"]],key=None),
+    TILES.AIR:TileTemplate(type_=TILES.AIR,imgs=[img["empty"]],key=2),
+    TILES.PLATFORM_1:TileTemplate(type_=TILES.PLATFORM_1,imgs=[img["tiles/platform"]],collidable=True,key=1),
+    TILES.SPAWN_POINT:TileTemplate(type_=TILES.SPAWN_POINT,imgs=[img["empty"]],editorimgs=[img["player/player_idle"]],key=2),
+    TILES.BOUNCE_PAD:TileTemplate(type_=TILES.BOUNCE_PAD,imgs=[img["tiles/bounce_pad"]],key=3),
+    TILES.PLATFORM_2:TileTemplate(type_=TILES.PLATFORM_2,imgs=[img["tiles/platform_straight"]],collidable=True,key=2),
+    TILES.GRASS:TileTemplate(type_=TILES.GRASS,imgs=[img["tiles/grass_1"],img["tiles/grass_2"],img["tiles/grass_3"]],collidable=True,key=2),
+    TILES.SPIKE:TileTemplate(type_=TILES.SPIKE,imgs=[img["tiles/spike"]],deadly=True,key=4),
 }
 
 class DEATHS(_enum):
     SPIKE = "spike"
     UNKNOWN = "unknown"
+
 
 
 del _pg,_getListOfFiles,_i,_loadimg,_os,_keys_dict
