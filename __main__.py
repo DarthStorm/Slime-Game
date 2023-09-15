@@ -16,7 +16,7 @@ CAMY = 0
 FPS = 30
 
 #init imgs
-from constants import tiletemplates,TileTemplate,img,DEATHS,TILES,TILESIZE,order
+from constants import tiletemplates,TileTemplate,img,DEATHS,TILES,TILESIZE,order,keys_dict
 #functions
 def match_tiletemplate(type_:str) -> TileTemplate:
     try:
@@ -72,11 +72,15 @@ class Level():
                 {
                     "x": 32,
                     "y": 96,
+                    "type":"platform_1",
+                    "width":32,
+                    "height":32,
+                    "data":""
                 },
                 {
                     "x": 32,
                     "y": 32,
-                    "type": "003",
+                    "type": "spawn_point",
                     "width": 32,
                     "height": 32,
                     "data": ""
@@ -109,19 +113,22 @@ class Level():
 
             #handle special cases
             match i["type"]:
-                case TILES.SPAWN_POINT:
+                case TILES.SPAWN_POINT.value:
                     self.players.add(Player(x=i["x"], y=i["y"]))
+            print(i)
 
             #add the tile, even when handled by special case
-            sprite = Tile(i["x"],i["y"],type_=i["type"],width=i["width"],height=i["height"],data=i["data"])
-            self.tiles.add(sprite)
-
-
-
+            sprite = Tile(i["x"],i["y"],type_=TILES(i["type"]),width=i["width"],height=i["height"],data=i["data"])
+            self.tiles.add(sprite)     
 
         #editor-exclusive
         self.editortile = EditorTile()
         self.editor = False
+
+        if len(self.players) == 0:
+            tmpplayer = Player(x=0,y=0)
+            self.players.add(tmpplayer)
+            self.toggle_editor()
 
     def save(self,file:TextIOWrapper):
         try:
@@ -129,11 +136,11 @@ class Level():
             for tile in self.tiles:
                 #changes tiles to just tile id, x,y, and data
                 if isinstance(tile, Tile):
-                    if tile.type == TILES.AIR:continue
+                    if tile.type == TILES.AIR or tile.type == TILES.NULL:continue
                     tiledata = {
                         "x":tile.x,
                         "y":tile.y,
-                        "type":tile.type,
+                        "type":tile.type.value,
                         "width":tile.width,
                         "height":tile.height,
                         "data":tile.data
@@ -433,15 +440,29 @@ class EditorTile(pygame.sprite.Sprite):
                 self.brush = lvl.level[tgy][tgx]
             except IndexError:pass
 
-    def nextkey(self):
-        print(str(int(self.brush)+1).zfill(3),int(self.brush)+1,"001",sep="\n")
-        self.brush = str(int(self.brush)+1).zfill(3) if int(self.brush)+1 < len(tiletemplates) else "001"
-        print(self.brush)
+    def nexttile(self,key):
+        """
+        Gets the next tile for the key.
+        key: the keycode 
+        """
 
-    def prevkey(self):
-        print(str(int(self.brush)-1).zfill(3),int(self.brush)-1,str(len(tiletemplates)-1).zfill(3),sep="\n")
-        self.brush = str(int(self.brush)-1).zfill(3) if int(self.brush)-1 > 1 else str(len(tiletemplates)-1).zfill(3)
-        print(self.brush)
+        #gets the index of the key
+        print(order)
+        try:
+            idx = order[key].index(self.brush)
+            self.brush = order[key][idx+1]
+        except (ValueError,IndexError):
+            #IndexError: list index out of range, set back to 0
+            #ValueError: if we are not on the key group, jump to the first key
+            try:
+                idx = 0
+                self.brush = order[key][idx]
+            except IndexError:
+                #we get another error: the key group has nothing in it
+                #don't touch the brush in this case, the key should not work
+                #will be useless when all key groups are filled, but by then maybe i have a better editor system
+                pass
+        
 
     def draw(self,surf:pygame.surface.Surface):
         """A custom draw method for the EditorTile to support alpha."""
@@ -470,8 +491,7 @@ def runlevel(lvlname):
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_0:level.toggle_editor()
-                elif event.key == pygame.K_MINUS:level.editortile.prevkey()
-                elif event.key == pygame.K_EQUALS:level.editortile.nextkey()
+                elif event.key in order.keys():level.editortile.nexttile(event.key)
                 elif event.key == pygame.K_r:[p.respawn() for p in level.players]
             #elif event.type == pygame.KEYDOWN and event.key in [pygame.K_1,pygame.K_2,pygame.K_3,pygame.K_4,pygame.K_5,pygame.K_6,pygame.K_7,pygame.K_8,pygame.K_9]:
                 #level.et.next_key(event.key)

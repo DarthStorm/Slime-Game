@@ -5,7 +5,7 @@ from enum import Enum as _enum
 if __name__ == "__main__":
     _pg.init()
     _pg.display.set_mode((1,1))
-_keys_dict = {1:_pg.K_1,2:_pg.K_2,3:_pg.K_3,4:_pg.K_4,5:_pg.K_5,6:_pg.K_6,7:_pg.K_7,8:_pg.K_8,9:_pg.K_9,None:None}
+keys_dict = {1:_pg.K_1,2:_pg.K_2,3:_pg.K_3,4:_pg.K_4,5:_pg.K_5,6:_pg.K_6,7:_pg.K_7,8:_pg.K_8,9:_pg.K_9,None:None}
 
 def _loadimg(fp):
     "load img:autoapply 'textures\\'"
@@ -40,7 +40,7 @@ class TileTemplate():
         self.width = width
         self.height = height
         self.deadly = deadly
-        self.key = _keys_dict[key]
+        self.key = keys_dict[key]
     def get_texture(self,seed:int|None=None,editor:bool=False,variant = 0):
         imgl = self.editorimgs if editor else self.imgs#switch between editor and normal, so some textures only show in editor
         if seed is not None:#lemme just inform you that if a list has only one value, you are FORCED to pick the value.
@@ -72,30 +72,24 @@ tiletemplates = {
 
 #this will be revamped when we add more tiles
 order = {
-    1:[],
-    2:[],
-    3:[],
-    4:[],
-    5:[],
-    6:[],
-    7:[],
-    8:[],
-    9:[],
+    _pg.K_1:[],
+    _pg.K_2:[],
+    _pg.K_3:[],
+    _pg.K_4:[],
+    _pg.K_5:[],
+    _pg.K_6:[],
+    _pg.K_7:[],
+    _pg.K_8:[],
+    _pg.K_9:[],
 }
-for k,v in tiletemplates:
+for k,v in tiletemplates.items():
     try:
         order[v.key].append(k)
-    except IndexError:
+    except KeyError:
         pass
 
 class DEATHS(_enum):
     SPIKE = "spike"
     UNKNOWN = "unknown"
 
-while True:
-    try:
-        exec(input())
-    except Exception as e:
-        print(e)
-
-del _pg,_getListOfFiles,_i,_loadimg,_os,_keys_dict, _enum
+del _pg,_getListOfFiles,_i,_loadimg,_os, _enum
