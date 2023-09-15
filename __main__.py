@@ -18,7 +18,7 @@ FPS = 30
 #init imgs
 from constants import tiletemplates,TileTemplate,img,DEATHS,TILES,TILESIZE,order,keys_dict
 #functions
-def match_tiletemplate(type_:str) -> TileTemplate:
+def match_tiletemplate(type_:TILES) -> TileTemplate:
     try:
         tt = tiletemplates[type_]
     except KeyError:
@@ -115,7 +115,6 @@ class Level():
             match i["type"]:
                 case TILES.SPAWN_POINT.value:
                     self.players.add(Player(x=i["x"], y=i["y"]))
-            print(i)
 
             #add the tile, even when handled by special case
             sprite = Tile(i["x"],i["y"],type_=TILES(i["type"]),width=i["width"],height=i["height"],data=i["data"])
@@ -223,7 +222,7 @@ class Player(pygame.sprite.Sprite):
         airres:Air resistance to slow the player down, a multiplier.
         
     """
-    def __init__(self,x,y,basewidth=32,baseheight=32,accel=1.5,jumpheight=-15,airres=0.85):
+    def __init__(self,x,y,basewidth=32,baseheight=32,accel=2,jumpheight=-12,airres=0.85 ,maxspeed=10):
         """Initialises the player. See class Player."""
         pygame.sprite.Sprite.__init__(self)
         self.spawnx,self.spawny = x,y
@@ -233,6 +232,7 @@ class Player(pygame.sprite.Sprite):
         self.godmode = False
         self.basewidth = basewidth
         self.baseheight = baseheight
+        self.maxspeed = maxspeed
         self.respawn()
         self.movecam()
     def respawn(self):
@@ -308,8 +308,10 @@ class Player(pygame.sprite.Sprite):
 
             #xv
             self.xv += ((keys[pygame.K_RIGHT] or keys[pygame.K_d])-(keys[pygame.K_LEFT] or keys[pygame.K_a])) * self.accel
-            self.xv *= 0.85
-            
+            self.xv *= self.airres
+            print(self.xv)
+            if abs(self.xv) > self.maxspeed:
+                self.xv = self.maxspeed * (self.xv/abs(self.xv))           
             #yv
             if self.airtime < 3 and (keys[pygame.K_w] or keys[pygame.K_UP]):
                 self.yv = self.jumpheight
@@ -447,7 +449,6 @@ class EditorTile(pygame.sprite.Sprite):
         """
 
         #gets the index of the key
-        print(order)
         try:
             idx = order[key].index(self.brush)
             self.brush = order[key][idx+1]
