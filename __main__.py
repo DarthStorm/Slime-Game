@@ -222,7 +222,7 @@ class Player(pygame.sprite.Sprite):
         airres:Air resistance to slow the player down, a multiplier.
         
     """
-    def __init__(self,x,y,basewidth=32,baseheight=32,accel=2,jumpheight=-12,airres=0.85 ,maxspeed=10):
+    def __init__(self,x,y,basewidth=32,baseheight=32,accel=2,jumpheight=-12,gravity=1.5,airres=0.85):
         """Initialises the player. See class Player."""
         pygame.sprite.Sprite.__init__(self)
         self.spawnx,self.spawny = x,y
@@ -232,7 +232,7 @@ class Player(pygame.sprite.Sprite):
         self.godmode = False
         self.basewidth = basewidth
         self.baseheight = baseheight
-        self.maxspeed = maxspeed
+        self.gravity = gravity
         self.respawn()
         self.movecam()
     def respawn(self):
@@ -243,6 +243,8 @@ class Player(pygame.sprite.Sprite):
         self.yv = 0
         self.airtime = 999
         self.frame = 0
+        self.hanging = 0
+        self.enterdirection = 0
         self.imgname = "player/player_idle"
         self.image = img[self.imgname]
         self.rect = self.image.get_rect(topleft=(self.x,self.y))
@@ -303,54 +305,67 @@ class Player(pygame.sprite.Sprite):
                 self.respawn()
         else:
             #player is still alive
-            self.yv += 1
-            self.airtime += 1
 
-            #xv
-            self.xv += ((keys[pygame.K_RIGHT] or keys[pygame.K_d])-(keys[pygame.K_LEFT] or keys[pygame.K_a])) * self.accel
-            self.xv *= self.airres
-            print(self.xv)
-            if abs(self.xv) > self.maxspeed:
-                self.xv = self.maxspeed * (self.xv/abs(self.xv))           
-            #yv
-            if self.airtime < 3 and (keys[pygame.K_w] or keys[pygame.K_UP]):
-                self.yv = self.jumpheight
+            self.hanging -= 1
+            #check if player is hanging from a wall, if not, then continue as normal.
+            
+            if self.hanging > 0:
+                self.airtime = 999
+                if keys[pygame.K_w] or keys[pygame.K_UP]:
+                    self.xv = self.enterdirection * -69
+                    self.yv = 10
+                    self.hanging = 0
+                    print(self.xv)
+            else:
+            
+                self.yv += self.gravity
+                self.airtime += 1
 
-            #update x & y
-            self.x += self.xv
-            self.y += self.yv
+                #xv
+                self.xv += ((keys[pygame.K_RIGHT] or keys[pygame.K_d])-(keys[pygame.K_LEFT] or keys[pygame.K_a])) * self.accel
+                self.xv *= self.airres        
+                #yv
+                if self.airtime < 3 and (keys[pygame.K_w] or keys[pygame.K_UP]):
+                    self.yv = self.jumpheight
 
-            #really update the position and also add collision
+                #update x & y
+                self.x += self.xv
+                self.y += self.yv
 
-            #collision x:
-            self.rect.x = self.x
-            for i in level.tiles:
-                if self.rect.colliderect(i) and match_tiletemplate(i.type).collidable:
-                    if self.xv > 0:
-                        for _ in range(100):
-                            self.rect.x -= 1
-                            if not self.rect.colliderect(i):break
-                    elif self.xv < 0:
-                        for _ in range(100):
-                            self.rect.x += 1
-                            if not self.rect.colliderect(i):break
-                    self.xv = 0
-                    self.x = self.rect.x
-            #collision y:
-            self.rect.y = self.y
-            for i in level.tiles:
-                if self.rect.colliderect(i) and match_tiletemplate(i.type).collidable:
-                    if self.yv > 0:
-                        for _ in range(100):
-                            self.rect.y -= 1
-                            if not self.rect.colliderect(i):break
-                        self.airtime = 0
-                    elif self.yv < 0:
-                        for _ in range(100):
-                            self.rect.y += 1
-                            if not self.rect.colliderect(i):break
-                    self.yv = 0
-                    self.y = self.rect.y
+                #really update the position and also add collision
+
+                #collision x:
+                self.rect.x = self.x
+                for i in level.tiles:
+                    if self.rect.colliderect(i) and match_tiletemplate(i.type).collidable:
+                        if self.xv > 0:
+                            for _ in range(100):
+                                self.rect.x -= 1
+                                if not self.rect.colliderect(i):break
+                        elif self.xv < 0:
+                            for _ in range(100):
+                                self.rect.x += 1
+                                if not self.rect.colliderect(i):break
+                        if abs(self.xv) > 3 and self.yv != 1:
+                            self.hanging = 15
+                            self.enterdirection = self.xv/abs(self.xv)
+                        self.xv = 0
+                        self.x = self.rect.x
+                #collision y:
+                self.rect.y = self.y
+                for i in level.tiles:
+                    if self.rect.colliderect(i) and match_tiletemplate(i.type).collidable:
+                        if self.yv > 0:
+                            for _ in range(100):
+                                self.rect.y -= 1
+                                if not self.rect.colliderect(i):break
+                            self.airtime = 0
+                        elif self.yv < 0:
+                            for _ in range(100):
+                                self.rect.y += 1
+                                if not self.rect.colliderect(i):break
+                        self.yv = 0
+                        self.y = self.rect.y
 
             #trigger effects of special tiles
             for i in pygame.sprite.spritecollide(self,level.tiles,False):
