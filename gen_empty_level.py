@@ -2,7 +2,7 @@
 
 x = ""
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     for i in range(30):
         for i in range(100):
             x += "001"
