@@ -308,6 +308,7 @@ class Player(pygame.sprite.Sprite):
         self.airtime = 999
         self.frame = 0
         self.hanging = 0
+        self.lostcontrol = 0
         self.enterdirection = 0
         self.imgname = "player/player_idle"
         self.image = img[self.imgname]
@@ -357,8 +358,12 @@ class Player(pygame.sprite.Sprite):
                     self.image = pygame.transform.flip(self.image, True, False)
             else:
                 if "player/player_blob_" in self.imgname:
-                    if int(self.imgname[-1]) < 9:  # conversion to int error cannot happen
-                        self.imgname = self.imgname[:-1] + str(int(self.imgname[-1]) + 1)
+                    if (
+                        int(self.imgname[-1]) < 9
+                    ):  # conversion to int error cannot happen
+                        self.imgname = self.imgname[:-1] + str(
+                            int(self.imgname[-1]) + 1
+                        )
                     else:
                         self.imgname = "player/player_idle"
                 else:
@@ -402,28 +407,36 @@ class Player(pygame.sprite.Sprite):
             # player is still alive
 
             self.hanging -= 1
+            self.lostcontrol -= 1
             # check if player is hanging from a wall, if not, then continue as normal.
 
             if self.hanging > 0:
+                # launch player from wall
                 self.airtime = 999
+                self.yv = 0
                 if keys[pygame.K_w] or keys[pygame.K_UP]:
-                    self.xv = self.enterdirection * -69
-                    self.yv = -15
+                    self.xv = self.enterdirection * self.jumpheight * 1.4
+                    self.yv = self.jumpheight * 1.4
                     self.hanging = 0
-                    print(self.xv)
+                    self.lostcontrol = 5
             else:
+                # fall as normal
                 self.yv += self.gravity
                 self.airtime += 1
 
-                # xv
-                self.xv += (
-                    (keys[pygame.K_RIGHT] or keys[pygame.K_d])
-                    - (keys[pygame.K_LEFT] or keys[pygame.K_a])
-                ) * self.accel
-                self.xv *= self.airres
-                # yv
-                if self.airtime < 3 and (keys[pygame.K_w] or keys[pygame.K_UP]):
-                    self.yv = self.jumpheight
+                # handle controls
+                if self.lostcontrol < 0 : # block if player just jumped from a wall
+                    # xv
+                    self.xv += (
+                        (keys[pygame.K_RIGHT] or keys[pygame.K_d])
+                        - (keys[pygame.K_LEFT] or keys[pygame.K_a])
+                    ) * self.accel
+                    # yv
+                    if self.airtime < 3 and (keys[pygame.K_w] or keys[pygame.K_UP]):
+                        self.yv = self.jumpheight
+                    self.xv *= self.airres
+                else:
+                    self.xv *= self.airres * 1.1 if self.airres * 1.1 < 1  else 0.99
 
                 # update x & y
                 self.x += self.xv
@@ -449,7 +462,7 @@ class Player(pygame.sprite.Sprite):
                                 if not self.rect.colliderect(i):
                                     break
                         if abs(self.xv) > 3 and self.yv != 1:
-                            self.hanging = 15
+                            self.hanging = 60
                             self.enterdirection = self.xv / abs(self.xv)
                         self.xv = 0
                         self.x = self.rect.x
@@ -545,6 +558,7 @@ class EditorTile(pygame.sprite.Sprite):
         if mousepressed[0]:
             if isinstance(lvl, Level):
                 # check if air is selected, and if it is, activate delete mode
+                # should be fixed
                 if self.brush == TILES.AIR:
                     # delete stuff
 
@@ -575,10 +589,17 @@ class EditorTile(pygame.sprite.Sprite):
                         lvl.tiles.add(newtile)
 
         if mousepressed[1]:
-            try:
-                self.brush = lvl.level[tgy][tgx]
-            except IndexError:
-                pass
+            tile = Tile(0, 0)
+            for i in lvl.tiles:
+                if isinstance(i, Tile):
+                    if (
+                        mousepos[0] - CAMX > i.x
+                        and mousepos[0] - CAMX < i.x + i.width
+                        and mousepos[1] - CAMY > i.y
+                        and mousepos[1] - CAMY < i.y + i.height
+                    ):
+                        tile = i
+            self.brush = tile.type
 
     def nexttile(self, key):
         """

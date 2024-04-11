@@ -92,9 +92,19 @@ class TILES(_enum):
     SPAWN_POINT = "spawn_point"
     BOUNCE_PAD = "bounce_pad"
     PLATFORM_2 = "platform_2"
+    PLATFORM_MIDDLE = "platform_middle"
     GRASS = "grass"
     SPIKE = "spike"
     CRYSTAL = "crystal"
+    PLATFORM_TOP = "platform_top"
+    PLATFORM_TOPLEFT = "platform_topleft"
+    PLATFORM_LEFT = "platform_left"
+    PLATFORM_BOTTOMLEFT = "platform_bottomleft"
+    PLATFORM_BOTTOM = "platform_bottom"
+    PLATFORM_BOTTOMRIGHT = "platform_bottomright"
+    PLATFORM_RIGHT = "platform_right"
+    PLATFORM_TOPRIGHT = "platform_topright"
+
 
 # fmt:off
 
@@ -108,6 +118,19 @@ tiletemplates = {
     TILES.NULL: TileTemplate(type_=TILES.NULL, imgs=[img["empty"]], key=None),
     TILES.AIR: TileTemplate(type_=TILES.AIR, imgs=[img["empty"]], key=2),
     TILES.PLATFORM_1: TileTemplate(type_=TILES.PLATFORM_1, imgs=[img["tiles/platform"]], collidable=True, key=1),
+    
+    
+    TILES.PLATFORM_TOP: TileTemplate(type_=TILES.PLATFORM_TOP, imgs=[img["tiles/platform_edge_top"]], collidable=True, key=1),
+    TILES.PLATFORM_TOPLEFT: TileTemplate(type_=TILES.PLATFORM_TOPLEFT, imgs=[img["tiles/platform_edge_topleft"]], collidable=True, key=1),
+    TILES.PLATFORM_LEFT: TileTemplate(type_=TILES.PLATFORM_LEFT, imgs=[img["tiles/platform_edge_left"]], collidable=True, key=1),
+    TILES.PLATFORM_BOTTOMLEFT: TileTemplate(type_=TILES.PLATFORM_BOTTOMLEFT, imgs=[img["tiles/platform_edge_bottomleft"]], collidable=True, key=1),
+    TILES.PLATFORM_BOTTOM: TileTemplate(type_=TILES.PLATFORM_BOTTOM, imgs=[img["tiles/platform_edge_bottom"]], collidable=True, key=1),
+    TILES.PLATFORM_BOTTOMRIGHT: TileTemplate(type_=TILES.PLATFORM_BOTTOMRIGHT, imgs=[img["tiles/platform_edge_bottomright"]], collidable=True, key=1),
+    TILES.PLATFORM_RIGHT: TileTemplate(type_=TILES.PLATFORM_RIGHT, imgs=[img["tiles/platform_edge_right"]], collidable=True, key=1),
+    TILES.PLATFORM_TOPRIGHT: TileTemplate(type_=TILES.PLATFORM_TOPRIGHT, imgs=[img["tiles/platform_edge_topright"]], collidable=True, key=1),
+
+
+    TILES.PLATFORM_MIDDLE: TileTemplate(type_=TILES.PLATFORM_MIDDLE, imgs=[img["tiles/platform_middle"]], key=1),
     TILES.SPAWN_POINT: TileTemplate(type_=TILES.SPAWN_POINT,imgs=[img["empty"]],editorimgs=[img["player/player_idle"]],key=3),
     TILES.BOUNCE_PAD: TileTemplate(type_=TILES.BOUNCE_PAD, imgs=[img["tiles/bounce_pad"]], key=3),
     TILES.PLATFORM_2: TileTemplate(type_=TILES.PLATFORM_2,imgs=[img["tiles/platform_straight"]],collidable=True,key=1),
