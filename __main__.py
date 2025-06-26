@@ -329,13 +329,12 @@ class ControlVariable:
         return str(self.__int__())
 
     def calcvar(self, pressed: bool) -> int:
-        """A `ControlVariable` increments by 1 when the button is pressed.
+        """
+        Updates the `ControlVariable`.
 
-        Thus,\n
-        `var = 0` = not pressed at all\n
-        `var = 1` = just pressed\n
-        `var > 1` = held\n
-        `var >= 0` = key down\n
+        `pressed`: whether or not the key is pressed.
+        
+        See class `ControlVariable` for how it works.
         """
 
         if pressed:
