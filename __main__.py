@@ -1,3 +1,4 @@
+from types import UnionType
 import pygame, sys, random, json
 from io import TextIOWrapper
 from textwrap import wrap as strwrap
@@ -258,16 +259,118 @@ class Tile(pygame.sprite.Sprite):
         self.rect.x, self.rect.y = self.x, self.y
 
 
+class ControlVariable:
+    """A `ControlVariable` increments by 1 when a (predetermined) key is pressed.
+    Thus,\n
+    `var = 0` = not pressed at all\n
+    `var = 1` = just pressed\n
+    `var > 1` = held\n
+    `var >= 0` = key down\n"""
+
+    def __init__(self, value: int = 0) -> None:
+        self.value = value
+
+    def __int__(self) -> int:
+        return self.value
+
+    def __bool__(self) -> bool:
+        return False if self.value <= 0 else True
+
+    def __eq__(self, value: object) -> bool:
+        return self.__int__() == value
+
+    def __ne__(self, value: object) -> bool:
+        return self.__int__() != value
+
+    def __ge__(self, value: object) -> bool:
+        return self.__int__() >= value
+
+    def __le__(self, value: object) -> bool:
+        return self.__int__() <= value
+
+    def __gt__(self, value: object) -> bool:
+        return self.__int__() > value
+
+    def __lt__(self, value: object) -> bool:
+        return self.__int__() < value
+    
+    def __iadd__(self, value: object):
+        if type(value) is type(self): # is type ControlVariable
+            self.value += value.value
+        else:
+            self.value += value
+        return self 
+    
+    def __isub__(self, value: object):
+        if type(value) is type(self): # is type ControlVariable
+            self.value -= value.value
+        else:
+            self.value -= value
+        return self 
+    
+    def __imul__(self, value: object):
+        if type(value) is type(self): # is type ControlVariable
+            self.value *= value.value
+        else:
+            self.value *= value
+        return self 
+    
+    def __itruediv__(self, value: object):
+        if type(value) is type(self): # is type ControlVariable
+            self.value /= value.value
+        else:
+            self.value /= value
+        return self 
+
+    def __repr__(self) -> str:
+        return str(self.__int__())
+
+    def __str__(self) -> str:
+        return str(self.__int__())
+
+    def calcvar(self, pressed: bool) -> int:
+        """A `ControlVariable` increments by 1 when the button is pressed.
+
+        Thus,\n
+        `var = 0` = not pressed at all\n
+        `var = 1` = just pressed\n
+        `var > 1` = held\n
+        `var >= 0` = key down\n
+        """
+
+        if pressed:
+            self.value += 1
+        else:
+            self.value = 0
+        return self.value
+
+
+class Controls:
+    """`this.controls.up` is a lot more readable than `this.controls["up"]`
+
+    Storage container for ControlVariables. See class `ControlVariable` for how they work.
+    """
+
+    def __init__(self) -> None:
+        self.up = ControlVariable()
+        self.down = ControlVariable()
+        self.left = ControlVariable()
+        self.right = ControlVariable()
+    
+    def __repr__(self) -> str:
+        return f"<Controls {self.__dict__}>"
+
+
 class Player(pygame.sprite.Sprite):
     """
     A player.
 
     Used by the level to spawn a player.
-    Inputs:
+    Parameters:
         Player(x,y,width=32,height=32,accel=1.5,jumpheight=-15,airres=0.85)
         NOTE: All of these are passed in from the level.
 
-        x,y:The absolute position of the player in-game. These are NOT passed to rect.x and rect.y.
+        x,y:The absolute position of the player in-game.
         width,height: The size of the player, normally 32*32.
         accel:Acceleration, a multiplier.
         jumpheight:How high the player can jump:keep in mind it is NEGATIVE due to how pygame's display works.
@@ -288,35 +391,61 @@ class Player(pygame.sprite.Sprite):
     ):
         """Initialises the player. See class Player."""
         pygame.sprite.Sprite.__init__(self)
+        # set base attrs
         self.spawnx, self.spawny = x, y
         self.accel = accel
         self.jumpheight = jumpheight
         self.airres = airres
-        self.godmode = False
         self.basewidth = basewidth
         self.baseheight = baseheight
         self.gravity = gravity
+        self.godmode = False  # start with editor off
+        self.controls = Controls()
+
         self.respawn()
         self.movecam()
 
     def respawn(self):
-        self.respawntimer = -1  # not dead
+        """Respawns the player."""
+
+        self.respawntimer = -1  # player alive when respawntimer <= 0
+
+        # controls (see getControls for details)
+        self.up = 0
+        self.down = 0
+        self.left = 0
+        self.right = 0
+
+        # x, y, width, height
         self.x, self.y = self.spawnx, self.spawny
-        self.width, self.height = self.basewidth, self.baseheight
+        self.width, self.height = (
+            self.basewidth,
+            self.baseheight,
+        )  # ok why did i do this
+
+        # set velocities
         self.xv = 0
         self.yv = 0
+
+        # player cannot jump when just spawned, must be greater than coyote threshold
         self.airtime = 999
-        self.frame = 0
+
+        # walljump
         self.hanging = 0
         self.lostcontrol = 0
         self.enterdirection = 0
+
+        # textures
+        self.frame = 0  # chooses which blob stage to use
         self.imgname = "player/player_idle"
         self.image = img[self.imgname]
+
+        # rect
         self.rect = self.image.get_rect(topleft=(self.x, self.y))
 
     def movecam(self):
-        """Moves the camara."""
-        global CAMX, CAMY
+        """Moves the camera."""
+        global CAMX, CAMY  # this will bite me back
         CAMX += -self.rect.centerx + width / 2
         CAMY += -self.rect.centery + height / 2
 
@@ -332,32 +461,39 @@ class Player(pygame.sprite.Sprite):
 
         self.frame += 1
 
-        # special cases
+        # special cases (not walking, jumping, falling, or doing nothing)
+        # wallhanging
         if self.hanging > 0:
             self.imgname = "player/player_wallhang"
             self.image = img[self.imgname]
-            print(self.enterdirection)
-            if self.enterdirection > 0:
+            if self.enterdirection < 0:
                 self.image = pygame.transform.flip(self.image, True, False)
 
         else:
+            # in air
             if self.airtime > 3:
                 if self.airtime < 5:
                     self.imgname = "player/player_blob_3"
-                elif 5 <= self.airtime and self.airtime < 7:
+                elif (
+                    5 <= self.airtime and self.airtime < 7
+                ):  # python needs to add 5 <= self.airtime < 7
                     self.imgname = "player/player_blob_4"
                 else:
                     self.imgname = "player/player_blob_5"
                 self.image = img[self.imgname]
                 if self.xv < 0:
                     self.image = pygame.transform.flip(self.image, True, False)
+            # not in air
+            # walking
             elif abs(self.xv) > 1:
                 self.imgname = "player/player_blob_" + str(int((self.frame) % 10))
                 self.image = img[self.imgname]
-                if self.xv < 0:
+                if self.xv < 0:  # flip if turning left
                     self.image = pygame.transform.flip(self.image, True, False)
+            # not walking
             else:
                 if "player/player_blob_" in self.imgname:
+                    # round off blob animation, so it ends smoothly
                     if (
                         int(self.imgname[-1]) < 9
                     ):  # conversion to int error cannot happen
@@ -372,28 +508,27 @@ class Player(pygame.sprite.Sprite):
                 self.image = img[self.imgname]
                 self.frame = 0
 
+    def get_controls(self):
+        """Gets the controls. See class `Controls` for how the variables work.
+
+        TODO: when i get internet search up getters and setters to make this better"""
+
+        keys = pygame.key.get_pressed()
+
+        self.controls.up.calcvar(keys[pygame.K_w] or keys[pygame.K_UP])
+        self.controls.down.calcvar(keys[pygame.K_s] or keys[pygame.K_DOWN])
+        self.controls.left.calcvar(keys[pygame.K_a] or keys[pygame.K_LEFT])
+        self.controls.right.calcvar(keys[pygame.K_RIGHT] or keys[pygame.K_d])
+
     def update(self, level: Level):
         """Updates the player."""
         keys = pygame.key.get_pressed()
+        self.get_controls()
         if self.godmode:
             self.airtime = 0
-            self.xv += (
-                (
-                    (keys[pygame.K_RIGHT] or keys[pygame.K_d])
-                    - (keys[pygame.K_LEFT] or keys[pygame.K_a])
-                )
-                * self.accel
-                * 1.5
-            )
+            self.xv += ((self.controls.right > 0) - (self.controls.left > 0)) * self.accel * 1.5
             self.xv *= self.airres
-            self.yv += (
-                (
-                    (keys[pygame.K_s] or keys[pygame.K_DOWN])
-                    - (keys[pygame.K_w] or keys[pygame.K_UP])
-                )
-                * self.accel
-                * 1.5
-            )
+            self.yv += ((self.controls.down > 0) - (self.controls.up > 0)) * self.accel * 1.5
             self.yv *= self.airres
             self.x += self.xv
             self.y += self.yv
@@ -425,7 +560,7 @@ class Player(pygame.sprite.Sprite):
                 self.airtime += 1
 
                 # handle controls
-                if self.lostcontrol < 0 : # block if player just jumped from a wall
+                if self.lostcontrol < 0:  # block if player just jumped from a wall
                     # xv
                     self.xv += (
                         (keys[pygame.K_RIGHT] or keys[pygame.K_d])
@@ -436,7 +571,7 @@ class Player(pygame.sprite.Sprite):
                         self.yv = self.jumpheight
                     self.xv *= self.airres
                 else:
-                    self.xv *= self.airres * 1.1 if self.airres * 1.1 < 1  else 0.99
+                    self.xv *= self.airres * 1.1 if self.airres * 1.1 < 1 else 0.99
 
                 # update x & y
                 self.x += self.xv
