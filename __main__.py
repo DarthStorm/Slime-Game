@@ -15,7 +15,7 @@ clock = pygame.time.Clock()
 # camera
 CAMX = 0
 CAMY = 0
-FPS = 30
+FPS = 60
 
 # init imgs
 from constants import (
@@ -164,6 +164,8 @@ class Level:
         self.editortile = EditorTile()
         self.editor = False
 
+        self.delta = 1000 / FPS  # will change btw
+
         if len(self.players) == 0:
             tmpplayer = Player(x=0, y=0)
             self.players.add(tmpplayer)
@@ -293,34 +295,34 @@ class ControlVariable:
 
     def __lt__(self, value: object) -> bool:
         return self.__int__() < value
-    
+
     def __iadd__(self, value: object):
-        if type(value) is type(self): # is type ControlVariable
+        if type(value) is type(self):  # is type ControlVariable
             self.value += value.value
         else:
             self.value += value
-        return self 
-    
+        return self
+
     def __isub__(self, value: object):
-        if type(value) is type(self): # is type ControlVariable
+        if type(value) is type(self):  # is type ControlVariable
             self.value -= value.value
         else:
             self.value -= value
-        return self 
-    
+        return self
+
     def __imul__(self, value: object):
-        if type(value) is type(self): # is type ControlVariable
+        if type(value) is type(self):  # is type ControlVariable
             self.value *= value.value
         else:
             self.value *= value
-        return self 
-    
+        return self
+
     def __itruediv__(self, value: object):
-        if type(value) is type(self): # is type ControlVariable
+        if type(value) is type(self):  # is type ControlVariable
             self.value /= value.value
         else:
             self.value /= value
-        return self 
+        return self
 
     def __repr__(self) -> str:
         return str(self.__int__())
@@ -333,7 +335,7 @@ class ControlVariable:
         Updates the `ControlVariable`.
 
         `pressed`: whether or not the key is pressed.
-        
+
         See class `ControlVariable` for how it works.
         """
 
@@ -355,7 +357,7 @@ class Controls:
         self.down = ControlVariable()
         self.left = ControlVariable()
         self.right = ControlVariable()
-    
+
     def __repr__(self) -> str:
         return f"<Controls {self.__dict__}>"
 
@@ -383,10 +385,10 @@ class Player(pygame.sprite.Sprite):
         y,
         basewidth=32,
         baseheight=32,
-        accel=2,
+        accel=15,
         jumpheight=-12,
-        gravity=1.5,
-        airres=0.85,
+        gravity=0.8,
+        airres=0.8,
     ):
         """Initialises the player. See class Player."""
         pygame.sprite.Sprite.__init__(self)
@@ -525,15 +527,25 @@ class Player(pygame.sprite.Sprite):
         self.get_controls()
         if self.godmode:
             self.airtime = 0
-            self.xv += ((self.controls.right > 0) - (self.controls.left > 0)) * self.accel * 1.5
+            self.xv += (
+                ((self.controls.right > 0) - (self.controls.left > 0))
+                * self.accel
+                * 1.4
+                * level.delta
+            )
             self.xv *= self.airres
-            self.yv += ((self.controls.down > 0) - (self.controls.up > 0)) * self.accel * 1.5
+            self.yv += (
+                ((self.controls.down > 0) - (self.controls.up > 0))
+                * self.accel
+                * 1.4
+                * level.delta
+            )
             self.yv *= self.airres
             self.x += self.xv
             self.y += self.yv
             self.rect.x = self.x
             self.rect.y = self.y
-        elif self.respawntimer > 0:
+        elif self.respawntimer > 0:  # player dead
             self.respawntimer -= 1
             if self.respawntimer == 0:
                 self.respawn()
@@ -549,25 +561,29 @@ class Player(pygame.sprite.Sprite):
                 self.airtime = 999
                 self.yv = 0
                 if keys[pygame.K_w] or keys[pygame.K_UP]:
-                    self.xv = self.enterdirection * self.jumpheight * 1.4
-                    self.yv = self.jumpheight * 1.4
+                    self.xv = self.enterdirection * self.jumpheight * 1.4 * level.delta
+                    self.yv = self.jumpheight * 1.4 * level.delta
                     self.hanging = 0
                     self.lostcontrol = 5
             else:
                 # fall as normal
-                self.yv += self.gravity
-                self.airtime += 1
+                self.yv += self.gravity * level.delta
+                self.airtime += 30 * level.delta
 
                 # handle controls
                 if self.lostcontrol < 0:  # block if player just jumped from a wall
                     # xv
                     self.xv += (
-                        (keys[pygame.K_RIGHT] or keys[pygame.K_d])
-                        - (keys[pygame.K_LEFT] or keys[pygame.K_a])
-                    ) * self.accel
+                        (
+                            (keys[pygame.K_RIGHT] or keys[pygame.K_d])
+                            - (keys[pygame.K_LEFT] or keys[pygame.K_a])
+                        )
+                        * self.accel
+                        * level.delta
+                    )
                     # yv
                     if self.airtime < 3 and (keys[pygame.K_w] or keys[pygame.K_UP]):
-                        self.yv = self.jumpheight
+                        self.yv = self.jumpheight * level.delta
                     self.xv *= self.airres
                 else:
                     self.xv *= self.airres * 1.1 if self.airres * 1.1 < 1 else 0.99
@@ -626,8 +642,9 @@ class Player(pygame.sprite.Sprite):
                 if match_tiletemplate(i.type).deadly:
                     self.triggerdeath(level, cause=DEATHS.SPIKE)
                 if i.type == TILES.BOUNCE_PAD:  # bounce pad
-                    self.yv = -20
+                    self.yv = -600 * level.delta
 
+        print(self.x, self.y, self.xv, self.yv)
         self.switch_texture()
         self.movecam()
 
@@ -792,13 +809,13 @@ def runlevel(lvlname):
                     [p.respawn() for p in level.players]
             # elif event.type == pygame.KEYDOWN and event.key in [pygame.K_1,pygame.K_2,pygame.K_3,pygame.K_4,pygame.K_5,pygame.K_6,pygame.K_7,pygame.K_8,pygame.K_9]:
             # level.et.next_key(event.key)
+        level.delta = clock.tick(FPS) / 1000
 
         # tick can be here or with draw
         SCREEN.fill(bg_color)
         level.tick()
         level.draw()
         pygame.display.update()
-        clock.tick(FPS)
 
 
 runlevel("level.json")
